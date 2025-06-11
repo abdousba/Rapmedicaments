@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تذكير الأدوية</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        .scroll-container::-webkit-scrollbar {
+            width: 8px;
+        }
+        .scroll-container::-webkit-scrollbar-track {
+            background: #e0e0e0;
+            border-radius: 10px;
+        }
+        .scroll-container::-webkit-scrollbar-thumb {
+            background: #9ca3af;
+            border-radius: 10px;
+        }
+        .scroll-container::-webkit-scrollbar-thumb:hover {
+            background: #6b7280;
+        }
+    </style>
+</head>
+<body>
+    <div id="app-container" class="min-h-screen bg-gradient-to-br from-blue-100 to-indigo-200 p-4 sm:p-6 font-inter text-gray-800">
+        <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-2xl p-6 sm:p-8 space-y-8">
+            <!-- Language Selector -->
+            <div class="flex justify-end gap-2 mb-4">
+                <button id="lang-ar-button" class="px-4 py-2 rounded-lg text-sm font-semibold">
+                    العربية
+                </button>
+                <button id="lang-fr-button" class="px-4 py-2 rounded-lg text-sm font-semibold">
+                    Français
+                </button>
+            </div>
+
+            <!-- Header -->
+            <h1 id="app-title" class="text-4xl sm:text-5xl font-extrabold text-center text-indigo-700 mb-6 drop-shadow-md">
+                <!-- Translated by JS -->
+            </h1>
+
+            <!-- Add New Reminder Section -->
+            <div class="bg-indigo-50 p-5 rounded-lg shadow-inner border border-indigo-200">
+                <h2 id="add-reminder-title" class="text-2xl font-semibold text-indigo-600 mb-4">
+                    <!-- Translated by JS -->
+                </h2>
+                <div class="flex flex-col sm:flex-row gap-4">
+                    <input
+                        type="text"
+                        id="new-reminder-name-input"
+                        placeholder="اسم الدواء (مثال: فيتامين د)"
+                        class="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:border-transparent outline-none transition duration-200"
+                        aria-label="اسم الدواء"
+                    />
+                    <input
+                        type="time"
+                        id="new-reminder-time-input"
+                        class="p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-400 focus:border-transparent outline-none transition duration-200"
+                        aria-label="وقت التذكير"
+                    />
+                    <button
+                        id="add-reminder-button"
+                        class="bg-indigo-600 text-white px-6 py-3 rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition duration-300 transform hover:scale-105"
+                        aria-label="أضف تذكير"
+                    >
+                        <!-- Translated by JS -->
+                    </button>
+                </div>
+            </div>
+
+            <!-- Notification Permission Section -->
+            <div id="notification-permission-section" class="bg-yellow-50 p-4 rounded-lg border border-yellow-200 text-center shadow-sm hidden">
+                <p id="notification-permission-text" class="text-yellow-800 mb-3">
+                    <!-- Translated by JS -->
+                </p>
+                <button
+                    id="allow-notifications-button"
+                    class="bg-yellow-500 text-white px-5 py-2 rounded-lg shadow hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:ring-offset-2 transition duration-300"
+                    aria-label="السماح بالإشعارات"
+                >
+                    <!-- Translated by JS -->
+                </button>
+            </div>
+
+            <!-- Active Reminders List -->
+            <div class="space-y-4">
+                <h2 id="active-reminders-title" class="text-2xl font-semibold text-indigo-600">
+                    <!-- Translated by JS -->
+                </h2>
+                <div id="active-reminders-list" class="max-h-96 overflow-y-auto pr-2 scroll-container">
+                    <!-- Reminders will be rendered here by JS -->
+                </div>
+            </div>
+
+            <!-- Previous Medications (Archived) List -->
+            <div class="space-y-4 mt-8">
+                <h2 id="previous-medications-title" class="text-2xl font-semibold text-indigo-600">
+                    <!-- Translated by JS -->
+                </h2>
+                <div id="previous-medications-list" class="max-h-60 overflow-y-auto pr-2 scroll-container">
+                    <!-- Archived reminders will be rendered here by JS -->
+                </div>
+            </div>
+
+            <!-- Medication History List -->
+            <div class="space-y-4 mt-8">
+                <h2 id="medication-history-title" class="text-2xl font-semibold text-indigo-600">
+                    <!-- Translated by JS -->
+                </h2>
+                <div id="medication-history-list" class="max-h-60 overflow-y-auto pr-2 scroll-container">
+                    <!-- Taken history will be rendered here by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global state variables
+        let activeReminders = [];
+        let archivedReminders = [];
+        let takenHistory = [];
+        let currentLanguage = 'ar'; // Default to Arabic
+        let notificationPermission = 'default';
+        let notificationIntervalId = null; // Changed from useRef to simple let for vanilla JS
+
+        // Translations configuration
+        const resources = {
+            ar: {
+                translation: {
+                    appName: "تذكير الأدوية",
+                    addReminderTitle: "أضف تذكير دواء جديد",
+                    medicineNamePlaceholder: "اسم الدواء (مثال: فيتامين د)",
+                    addReminderButton: "أضف تذكير",
+                    notificationPermissionText: "لتمكين التنبيهات، يرجى السماح بالإشعارات في متصفحك.",
+                    allowNotificationsButton: "السماح بالإشعارات",
+                    myRemindersTitle: "تذكيراتي النشطة",
+                    noRemindersText: "لا توجد تذكيرات نشطة حالياً. أضف تذكيرك الأول!",
+                    reminderTime: "الوقت:",
+                    markTakenButton: "تم تناوله",
+                    deleteButton: "حذف",
+                    alertFillFields: "الرجاء إدخال اسم الدواء والوقت.",
+                    confirmDelete: "هل أنت متأكد أنك تريد حذف هذا التذكير؟ سيتم نقله إلى الأدوية السابقة.",
+                    markedTaken: "تم تسجيل الدواء كـ 'تم تناوله'.",
+                    loadingApp: "جاري تحميل التطبيق...", // This won't be seen as the app is directly loaded
+                    notificationTitle: "تذكير: {{name}}",
+                    notificationBody: "حان وقت تناول دواء {{name}} في {{time}}.",
+                    browserNoSupport: "هذا المتصفح لا يدعم إشعارات سطح المكتب.",
+                    previousMedicationsTitle: "الأدوية السابقة",
+                    noPreviousMedications: "لا توجد أدوية سابقة.",
+                    medicationHistoryTitle: "سجل الأدوية المتناولة",
+                    noMedicationHistory: "لا يوجد سجل لأدوية متناولة بعد.",
+                    takenAt: "تم تناوله في:",
+                    restoreButton: "استعادة"
+                }
+            },
+            fr: {
+                translation: {
+                    appName: "Rappels de Médicaments",
+                    addReminderTitle: "Ajouter un nouveau rappel de médicament",
+                    medicineNamePlaceholder: "Nom du médicament (ex: Vitamine D)",
+                    addReminderButton: "Ajouter un rappel",
+                    notificationPermissionText: "Pour activer les alertes, veuillez autoriser les notifications dans votre navigateur.",
+                    allowNotificationsButton: "Autoriser les notifications",
+                    myRemindersTitle: "Mes Rappels Actifs",
+                    noRemindersText: "Aucun rappel actif pour l'instant. Ajoutez votre premier rappel !",
+                    reminderTime: "Heure:",
+                    markTakenButton: "Pris",
+                    deleteButton: "Supprimer",
+                    alertFillFields: "Veuillez entrer le nom du médicament et l'heure.",
+                    confirmDelete: "Êtes-vous sûr de vouloir supprimer ce rappel ? Il sera déplacé vers les médicaments précédents.",
+                    markedTaken: "Médicament marqué comme 'pris'.",
+                    loadingApp: "Chargement de l'application...", // This won't be seen as the app is directly loaded
+                    notificationTitle: "Rappel: {{name}}",
+                    notificationBody: "Il est temps de prendre le médicament {{name}} à {{time}}.",
+                    browserNoSupport: "Ce navigateur ne prend pas en charge les notifications de bureau.",
+                    previousMedicationsTitle: "Médicaments Précédents",
+                    noPreviousMedications: "Aucun médicament précédent.",
+                    medicationHistoryTitle: "Historique des médicaments pris",
+                    noMedicationHistory: "Aucun historique de médicaments pris pour le moment.",
+                    takenAt: "Pris à:",
+                    restoreButton: "Restaurer"
+                }
+            }
+        };
+
+        // Simple translation function
+        function t(key, interpolations = {}) {
+            let text = resources[currentLanguage]?.translation[key] || key;
+            for (const [placeholder, value] of Object.entries(interpolations)) {
+                text = text.replace(new RegExp(`\\{\\{${placeholder}\\}\\}`, 'g'), value);
+            }
+            return text;
+        }
+
+        // --- Local Storage Management ---
+        function loadDataFromLocalStorage() {
+            try {
+                const storedActiveReminders = localStorage.getItem('medicationReminders_active');
+                const storedArchivedReminders = localStorage.getItem('medicationReminders_archived');
+                const storedTakenHistory = localStorage.getItem('medicationReminders_takenHistory');
+
+                if (storedActiveReminders) {
+                    activeReminders = JSON.parse(storedActiveReminders);
+                }
+                if (storedArchivedReminders) {
+                    archivedReminders = JSON.parse(storedArchivedReminders);
+                }
+                if (storedTakenHistory) {
+                    takenHistory = JSON.parse(storedTakenHistory);
+                }
+            } catch (error) {
+                console.error("Failed to load data from localStorage:", error);
+            }
+        }
+
+        function saveDataToLocalStorage() {
+            localStorage.setItem('medicationReminders_active', JSON.stringify(activeReminders));
+            localStorage.setItem('medicationReminders_archived', JSON.stringify(archivedReminders));
+            localStorage.setItem('medicationReminders_takenHistory', JSON.stringify(takenHistory));
+        }
+
+        // --- UI Update Functions ---
+        function updateTextContent() {
+            document.getElementById('app-title').textContent = t('appName');
+            document.getElementById('add-reminder-title').textContent = t('addReminderTitle');
+            document.getElementById('new-reminder-name-input').placeholder = t('medicineNamePlaceholder');
+            document.getElementById('new-reminder-name-input').setAttribute('aria-label', t('medicineNamePlaceholder'));
+            document.getElementById('new-reminder-time-input').setAttribute('aria-label', t('reminderTime'));
+            document.getElementById('add-reminder-button').textContent = t('addReminderButton');
+            document.getElementById('add-reminder-button').setAttribute('aria-label', t('addReminderButton'));
+
+            const notificationSection = document.getElementById('notification-permission-section');
+            if (notificationPermission !== 'granted') {
+                 notificationSection.classList.remove('hidden');
+                 document.getElementById('notification-permission-text').textContent = t('notificationPermissionText');
+                 document.getElementById('allow-notifications-button').textContent = t('allowNotificationsButton');
+                 document.getElementById('allow-notifications-button').setAttribute('aria-label', t('allowNotificationsButton'));
+            } else {
+                 notificationSection.classList.add('hidden');
+            }
+
+
+            document.getElementById('active-reminders-title').textContent = t('myRemindersTitle');
+            document.getElementById('previous-medications-title').textContent = t('previousMedicationsTitle');
+            document.getElementById('medication-history-title').textContent = t('medicationHistoryTitle');
+
+            document.documentElement.setAttribute('dir', currentLanguage === 'ar' ? 'rtl' : 'ltr');
+            document.documentElement.lang = currentLanguage;
+
+            // Update button styles based on active language
+            document.getElementById('lang-ar-button').className = `px-4 py-2 rounded-lg text-sm font-semibold ${currentLanguage === 'ar' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`;
+            document.getElementById('lang-fr-button').className = `px-4 py-2 rounded-lg text-sm font-semibold ${currentLanguage === 'fr' ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`;
+        }
+
+        function renderActiveReminders() {
+            const listContainer = document.getElementById('active-reminders-list');
+            listContainer.innerHTML = ''; // Clear existing content
+
+            if (activeReminders.length === 0) {
+                listContainer.innerHTML = `<p class="text-center text-gray-500 p-4 bg-gray-50 rounded-lg">${t('noRemindersText')}</p>`;
+            } else {
+                activeReminders.forEach(reminder => {
+                    const reminderDiv = document.createElement('div');
+                    reminderDiv.className = "flex items-center justify-between bg-white p-4 rounded-lg shadow-md border border-gray-200 mb-3 transition duration-200 ease-in-out transform hover:scale-[1.01]";
+                    reminderDiv.innerHTML = `
+                        <div>
+                            <p class="text-lg font-medium text-gray-900">${reminder.name}</p>
+                            <p class="text-sm text-gray-600">${t('reminderTime')} ${reminder.time}</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button class="bg-green-500 text-white px-3 py-2 rounded-md text-sm shadow hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-400 transition duration-300"
+                                data-id="${reminder.id}" data-action="mark-taken" aria-label="${t('markTakenButton')} ${reminder.name}">
+                                ${t('markTakenButton')}
+                            </button>
+                            <button class="bg-red-500 text-white px-3 py-2 rounded-md text-sm shadow hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-400 transition duration-300"
+                                data-id="${reminder.id}" data-action="delete" aria-label="${t('deleteButton')} ${reminder.name}">
+                                ${t('deleteButton')}
+                            </button>
+                        </div>
+                    `;
+                    listContainer.appendChild(reminderDiv);
+                });
+            }
+        }
+
+        function renderPreviousMedications() {
+            const listContainer = document.getElementById('previous-medications-list');
+            listContainer.innerHTML = ''; // Clear existing content
+
+            if (archivedReminders.length === 0) {
+                listContainer.innerHTML = `<p class="text-center text-gray-500 p-4 bg-gray-50 rounded-lg">${t('noPreviousMedications')}</p>`;
+            } else {
+                archivedReminders.forEach(reminder => {
+                    const reminderDiv = document.createElement('div');
+                    reminderDiv.className = "flex items-center justify-between bg-gray-100 p-4 rounded-lg shadow-sm border border-gray-300 mb-3 opacity-70 transition duration-200 ease-in-out";
+                    reminderDiv.innerHTML = `
+                        <div>
+                            <p class="text-lg font-medium text-gray-700 line-through">${reminder.name}</p>
+                            <p class="text-sm text-gray-500">${t('reminderTime')} ${reminder.time}</p>
+                        </div>
+                        <button class="bg-blue-500 text-white px-3 py-2 rounded-md text-sm shadow hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400 transition duration-300"
+                            data-id="${reminder.id}" data-action="restore" aria-label="${t('restoreButton')} ${reminder.name}">
+                            ${t('restoreButton')}
+                        </button>
+                    `;
+                    listContainer.appendChild(reminderDiv);
+                });
+            }
+        }
+
+        function renderMedicationHistory() {
+            const listContainer = document.getElementById('medication-history-list');
+            listContainer.innerHTML = ''; // Clear existing content
+
+            if (takenHistory.length === 0) {
+                listContainer.innerHTML = `<p class="text-center text-gray-500 p-4 bg-gray-50 rounded-lg">${t('noMedicationHistory')}</p>`;
+            } else {
+                takenHistory.forEach((entry, index) => {
+                    const historyDiv = document.createElement('div');
+                    historyDiv.className = "flex flex-col sm:flex-row sm:items-center justify-between bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-3";
+                    historyDiv.innerHTML = `
+                        <div>
+                            <p class="text-lg font-medium text-gray-900">${entry.name}</p>
+                            <p class="text-sm text-gray-600">
+                                ${t('takenAt')} ${entry.takenDateFormatted} ${entry.takenTimeFormatted}
+                            </p>
+                        </div>
+                    `;
+                    listContainer.appendChild(historyDiv);
+                });
+            }
+        }
+
+        function updateUI() {
+            updateTextContent();
+            renderActiveReminders();
+            renderPreviousMedications();
+            renderMedicationHistory();
+        }
+
+        // --- Language Switcher ---
+        function changeLanguage(lng) {
+            currentLanguage = lng;
+            updateUI(); // Re-render UI with new language
+            saveDataToLocalStorage(); // Not strictly necessary for language, but good practice if current language was saved
+        }
+
+        // --- Notification Permissions ---
+        async function requestNotificationPermission() {
+            if (!('Notification' in window)) {
+                alert(t('browserNoSupport'));
+                return;
+            }
+            const permission = await Notification.requestPermission();
+            notificationPermission = permission;
+            updateUI(); // To hide permission section if granted
+            scheduleNotifications(); // Start scheduling if granted
+        }
+
+        // --- Schedule Notifications ---
+        function scheduleNotifications() {
+            if (notificationIntervalId) {
+                clearInterval(notificationIntervalId);
+            }
+
+            if (notificationPermission === 'granted' && activeReminders.length > 0) {
+                notificationIntervalId = setInterval(() => {
+                    const now = new Date();
+                    const currentHour = now.getHours();
+                    const currentMinute = now.getMinutes();
+
+                    activeReminders.forEach(reminder => {
+                        if (reminder.time) {
+                            const [reminderHour, reminderMinute] = reminder.time.split(':').map(Number);
+
+                            if (
+                                reminderHour === currentHour &&
+                                currentMinute === reminderMinute
+                            ) {
+                                const lastNotifiedKey = `lastNotified_${reminder.id}_${now.toDateString()}`;
+                                const lastNotified = localStorage.getItem(lastNotifiedKey);
+
+                                if (!lastNotified) {
+                                    new Notification(t('notificationTitle', { name: reminder.name }), {
+                                        body: t('notificationBody', { name: reminder.name, time: reminder.time }),
+                                        icon: 'https://placehold.co/64x64/00BFFF/FFFFFF?text=💊'
+                                    });
+                                    localStorage.setItem(lastNotifiedKey, 'true');
+                                }
+                            }
+                        }
+                    });
+                }, 60 * 1000); // Check every minute
+            }
+        }
+
+        // --- Form Handlers ---
+        function handleAddReminder() {
+            const newReminderName = document.getElementById('new-reminder-name-input').value.trim();
+            const newReminderTime = document.getElementById('new-reminder-time-input').value.trim();
+
+            if (newReminderName === '' || newReminderTime === '') {
+                alert(t('alertFillFields'));
+                return;
+            }
+
+            const newReminder = {
+                id: Date.now().toString(),
+                name: newReminderName,
+                time: newReminderTime,
+                createdAt: new Date().toISOString(),
+            };
+
+            activeReminders.push(newReminder);
+            activeReminders.sort((a, b) => a.time.localeCompare(b.time)); // Sort after adding
+            saveDataToLocalStorage();
+            updateUI();
+
+            document.getElementById('new-reminder-name-input').value = '';
+            document.getElementById('new-reminder-time-input').value = '';
+            scheduleNotifications(); // Re-schedule notifications if new reminder added
+        }
+
+        function handleDeleteReminder(id) {
+            if (window.confirm(t('confirmDelete'))) {
+                const reminderToDeleteIndex = activeReminders.findIndex(r => r.id === id);
+                if (reminderToDeleteIndex !== -1) {
+                    const reminderToDelete = activeReminders.splice(reminderToDeleteIndex, 1)[0]; // Remove and get the item
+
+                    // Add to archived reminders
+                    archivedReminders.push({ ...reminderToDelete, deletedAt: new Date().toISOString() });
+
+                    saveDataToLocalStorage();
+                    updateUI();
+                    scheduleNotifications(); // Re-schedule as an active reminder was removed
+                }
+            }
+        }
+
+        function handleMarkTaken(id) {
+            const reminder = activeReminders.find(r => r.id === id);
+            if (reminder) {
+                const now = new Date();
+                const takenEntry = {
+                    reminderId: reminder.id,
+                    name: reminder.name,
+                    time: reminder.time,
+                    takenAt: now.toISOString(),
+                    takenDateFormatted: now.toLocaleDateString(currentLanguage === 'ar' ? 'ar-EG' : 'fr-FR', {
+                        year: 'numeric', month: 'long', day: 'numeric'
+                    }),
+                    takenTimeFormatted: now.toLocaleTimeString(currentLanguage === 'ar' ? 'ar-EG' : 'fr-FR', {
+                        hour: '2-digit', minute: '2-digit', hour12: false
+                    })
+                };
+                takenHistory.unshift(takenEntry); // Add to beginning for newest first
+                saveDataToLocalStorage();
+                updateUI();
+                alert(t('markedTaken'));
+            }
+        }
+
+        function handleRestoreReminder(id) {
+            const reminderToRestoreIndex = archivedReminders.findIndex(r => r.id === id);
+            if (reminderToRestoreIndex !== -1) {
+                const reminderToRestore = archivedReminders.splice(reminderToRestoreIndex, 1)[0]; // Remove and get the item
+
+                // Add back to active reminders
+                const { deletedAt, ...restoredReminder } = reminderToRestore; // Remove deletedAt property
+                activeReminders.push(restoredReminder);
+                activeReminders.sort((a, b) => a.time.localeCompare(b.time)); // Sort after adding
+
+                saveDataToLocalStorage();
+                updateUI();
+                scheduleNotifications(); // Re-schedule as an active reminder was restored
+            }
+        }
+
+        // --- Event Listeners ---
+        document.addEventListener('DOMContentLoaded', () => {
+            loadDataFromLocalStorage();
+            updateTextContent(); // Initial text update based on default language
+            renderActiveReminders();
+            renderPreviousMedications();
+            renderMedicationHistory();
+            scheduleNotifications();
+
+            // Attach static event listeners
+            document.getElementById('lang-ar-button').addEventListener('click', () => changeLanguage('ar'));
+            document.getElementById('lang-fr-button').addEventListener('click', () => changeLanguage('fr'));
+            document.getElementById('add-reminder-button').addEventListener('click', handleAddReminder);
+            document.getElementById('allow-notifications-button').addEventListener('click', requestNotificationPermission);
+
+            // Event delegation for dynamically added buttons (Mark Taken, Delete, Restore)
+            document.getElementById('active-reminders-list').addEventListener('click', (event) => {
+                const target = event.target;
+                if (target.tagName === 'BUTTON') {
+                    const action = target.dataset.action;
+                    const id = target.dataset.id;
+                    if (action === 'mark-taken') {
+                        handleMarkTaken(id);
+                    } else if (action === 'delete') {
+                        handleDeleteReminder(id);
+                    }
+                }
+            });
+
+            document.getElementById('previous-medications-list').addEventListener('click', (event) => {
+                const target = event.target;
+                if (target.tagName === 'BUTTON' && target.dataset.action === 'restore') {
+                    const id = target.dataset.id;
+                    handleRestoreReminder(id);
+                }
+            });
+
+            // Initial check for notification permission
+            if ('Notification' in window) {
+                notificationPermission = Notification.permission;
+                if (notificationPermission !== 'granted') {
+                    document.getElementById('notification-permission-section').classList.remove('hidden');
+                } else {
+                    document.getElementById('notification-permission-section').classList.add('hidden');
+                }
+            } else {
+                // If notifications not supported, hide the section
+                document.getElementById('notification-permission-section').classList.add('hidden');
+            }
+        });
+
+        // Request initial notification permission if default and user hasn't explicitly denied
+        // This won't trigger a popup on load, but sets the internal permission state.
+        if ('Notification' in window) {
+             Notification.permission;
+        }
+
+    </script>
+</body>
+</html>
